@@ -156,12 +156,14 @@ func (dir *Local) Update(name string, data []byte) error {
 	newNote.Tags = note.Tags
 	newNote.Groups = note.Groups
 
-	err = dir.Delete(&note)
+	err = dir.Create(newNote)
 	if err != nil {
 		return err
 	}
 
-	err = dir.Create(newNote)
+	// is ok to delete after creation because we use Id and not Name to find
+	// note
+	err = dir.Delete(&note)
 	if err != nil {
 		return err
 	}
