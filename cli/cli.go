@@ -16,9 +16,12 @@ const appFolder = "note"
 var backend note.Backend
 
 var commands = map[string]func([]string){
-	"add":  add,
-	"list": list,
-	"view": view,
+	"add":    add,
+	"list":   list,
+	"view":   view,
+	"search": search,
+	"delete": delete,
+	"edit":   edit,
 }
 
 var ErrFileEmpty = errors.New("file is empty")
@@ -60,4 +63,9 @@ func isPipe(p *os.File) bool {
 		return true
 	}
 	return false
+}
+
+func errExit(s string) {
+	fmt.Println(s)
+	os.Exit(1)
 }

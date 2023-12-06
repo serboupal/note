@@ -27,11 +27,12 @@ func list(args []string) {
 		data, err = backend.List(fs.Arg(0))
 	}
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	if len(data) == 0 {
-		fmt.Println("No notes found")
+		fmt.Println(note.ErrNotFound)
 		return
 	}
 	printList(data)
@@ -39,6 +40,10 @@ func list(args []string) {
 
 func printList(notes []note.Note) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if len(notes) == 0 {
+		fmt.Fprintln(w, "No notes found")
+		return
+	}
 	fmt.Fprintf(w, "NAME\tDATE\n")
 	for _, v := range notes {
 		fmt.Fprintf(w, "%s\t%s\n", v.Name, v.Date.Format(time.RFC822))

@@ -11,6 +11,7 @@ import (
 var (
 	ErrInvalidName = errors.New("invalid name for note")
 	ErrNoteExist   = errors.New("note name already exist")
+	ErrNotFound    = errors.New("not found")
 )
 
 type Note struct {
@@ -48,10 +49,13 @@ func InvalidName(name string) bool {
 
 type Backend interface {
 	Init() error
-	Add(n *Note) error
+	Create(n *Note) error
+	Get(name string) (Note, error)
+	Update(name string, data []byte) error
+	Delete(n *Note) error
+
+	Exist(name string) bool
 	List(name string) ([]Note, error)
 	ListAll() ([]Note, error)
-	Get(name string) (Note, error)
-	// Search(query string) []*Note
-	// Remove(n *Note) error
+	Search(query string) ([]Note, error)
 }

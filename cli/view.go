@@ -7,7 +7,7 @@ import (
 )
 
 func view(args []string) {
-	fs := flag.NewFlagSet("add", flag.ContinueOnError)
+	fs := flag.NewFlagSet("view", flag.ContinueOnError)
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
@@ -17,7 +17,7 @@ func view(args []string) {
 
 	n, err := backend.Get(fs.Arg(0))
 	if err != nil {
-		panic(err)
+		errExit(err.Error())
 	}
 	fmt.Printf("%s", string(n.Data))
 }

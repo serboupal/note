@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -17,13 +16,18 @@ func add(args []string) {
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
-		fs.Usage()
+		//	fs.Usage()
 		os.Exit(1)
 	}
 
-	if note.InvalidName(fs.Args()[0]) {
-		fmt.Println("invalid name for note")
-		os.Exit(1)
+	name := fs.Args()[0]
+
+	if note.InvalidName(name) {
+		errExit("invalid name for note")
+	}
+
+	if backend.Exist(name) {
+		errExit(note.ErrNoteExist.Error())
 	}
 
 	var bf []byte
@@ -32,20 +36,20 @@ func add(args []string) {
 	if isPipe(os.Stdin) {
 		bf, err = readPipe()
 	} else {
-		bf, err = openEditor()
+		bf, err = openEditor(nil)
 	}
 	if err != nil {
-		panic(err)
-	}
-
-	n, err := note.NewNote(fs.Args()[0], "", bf)
-	if err != nil {
-		panic(err)
+		errExit(err.Error())
 	}
 
-	err = backend.Add(n)
+	n, err := note.NewNote(name, "", bf)
 	if err != nil {
-		panic(err)
+		errExit(err.Error())
+	}
+
+	err = backend.Create(n)
+	if err != nil {
+		errExit(err.Error())
 	}
 }
 
@@ -53,10 +57,18 @@ func readPipe() ([]byte, error) {
 	return io.ReadAll(os.Stdin)
 }
 
-func openEditor() ([]byte, error) {
+func openEditor(data []byte) ([]byte, error) {
 	tmp, err := os.CreateTemp("", "*.md")
 	if err != nil {
 		return nil, err
+	}
+
+	if data != nil {
+		_, err := tmp.Write(data)
+		if err != nil {
+			return nil, err
+		}
+		tmp.Sync()
 	}
 	defer func() {
 		tmp.Close()
@@ -79,14 +91,20 @@ func openEditor() ([]byte, error) {
 
 	if fi.Size() == 0 {
 		err = ErrFileEmpty
-		fmt.Println(err)
 		return nil, err
 	}
 
 	bf := new(bytes.Buffer)
+
+	_, err = tmp.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = io.Copy(bf, tmp)
 	if err != nil {
 		return nil, err
 	}
+
 	return bf.Bytes(), nil
 }
