@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"text/tabwriter"
 
 	"github.com/serboupal/note/internal/local"
 	"github.com/serboupal/note/note"
@@ -15,13 +16,18 @@ const appFolder = "note"
 
 var backend note.Backend
 
-var commands = map[string]func([]string){
-	"add":    add,
-	"list":   list,
-	"view":   view,
-	"search": search,
-	"delete": delete,
-	"edit":   edit,
+type cmd struct {
+	fn   func([]string)
+	desc string
+}
+
+var commands = map[string]cmd{
+	"add":    {fn: add, desc: "add note"},
+	"list":   {fn: list, desc: "list notes"},
+	"view":   {fn: view, desc: "view note content"},
+	"search": {fn: search, desc: "search in note content"},
+	"delete": {fn: delete, desc: "delete note"},
+	"edit":   {fn: edit, desc: "edit note"},
 }
 
 var ErrFileEmpty = errors.New("file is empty")
@@ -38,23 +44,34 @@ func main() {
 
 	subcommand := flag.Args()
 	if len(subcommand) == 0 {
-		usage()
+		usage("", flag.CommandLine, commands)
 		os.Exit(1)
 	}
 	cmd, ok := commands[subcommand[0]]
 	if !ok {
-		usage()
+		usage("", flag.CommandLine, commands)
 		os.Exit(1)
 	}
 
 	if *debug {
 		log.Println("Debug info on")
 	}
-	cmd(subcommand[1:])
+	cmd.fn(subcommand[1:])
 }
 
-func usage() {
-	fmt.Println("Usage")
+func usage(cmdName string, fs *flag.FlagSet, c map[string]cmd) {
+	fmt.Printf("Usage:\n  %s %s [options] [file]\n\n", os.Args[0], cmdName)
+	if c != nil {
+		fmt.Printf("Commands:\n")
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+		for k, v := range c {
+			fmt.Fprintf(w, "  %s\t%s\n", k, v.desc)
+		}
+		w.Flush()
+		fmt.Println()
+	}
+	fmt.Printf("Options:\n")
+	fs.PrintDefaults()
 }
 
 func isPipe(p *os.File) bool {
