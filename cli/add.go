@@ -12,15 +12,18 @@ import (
 
 func add(args []string) {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
-	//title := fs.String("title", "", "title of the note")
+	edit := fs.Bool("edit", false, "open editor to modify before adding note")
+
+	fs.Usage = func() {
+		usage(fs, nil)
+	}
 	fs.Parse(args)
 
-	if fs.NArg() == 0 {
-		//	fs.Usage()
-		os.Exit(1)
-	}
+	name := fs.Arg(0)
 
-	name := fs.Args()[0]
+	if name == "" {
+		fs.Usage()
+	}
 
 	if note.InvalidName(name) {
 		errExit("invalid name for note")
@@ -32,12 +35,26 @@ func add(args []string) {
 
 	var bf []byte
 	var err error
+	filename := fs.Arg(1)
 
 	if isPipe(os.Stdin) {
+		if *edit {
+			errExit("you can't use --edit on a pipe")
+		}
 		bf, err = readPipe()
+	} else if filename != "" {
+		bf, err = os.ReadFile(filename)
+		if err != nil {
+			errExit(err.Error())
+		}
 	} else {
-		bf, err = openEditor(nil)
+		*edit = true
 	}
+
+	if *edit {
+		bf, err = openEditor(bf)
+	}
+
 	if err != nil {
 		errExit(err.Error())
 	}

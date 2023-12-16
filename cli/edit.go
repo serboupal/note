@@ -2,16 +2,15 @@ package main
 
 import (
 	"flag"
-	"os"
 )
 
 func edit(args []string) {
 	fs := flag.NewFlagSet("edit", flag.ContinueOnError)
+	fs.Usage = func() { usage(fs, nil) }
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
 		fs.Usage()
-		os.Exit(1)
 	}
 
 	name := fs.Args()[0]

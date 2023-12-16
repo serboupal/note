@@ -16,7 +16,7 @@ import (
 
 var (
 	ErrInvalidPath = errors.New("invalid path")
-	ErrNotModified = errors.New("file not modified")
+	ErrNotModified = errors.New("note not modified")
 )
 
 type Local struct {
@@ -34,6 +34,8 @@ type path struct {
 	dir    string
 	id     string
 }
+
+var _ = (note.Backend)(&Local{})
 
 func (dir *Local) newPathFromId(id string) (*path, error) {
 	if len(id) != 64 {
@@ -58,11 +60,9 @@ func (dir *Local) newPathFromPath(path string) (*path, error) {
 	return dir.newPathFromId(id)
 }
 
-var _ = (note.Backend)(&Local{})
-
-// NewLocal returs a Local backend that uses the dir as the folder name to save
+// NewBackendLocal returs a Local backend that uses the dir as the folder name to save
 // data.
-func NewLocal(dir string) *Local {
+func NewBackendLocal(dir string) *Local {
 	return &Local{dir: dir}
 }
 
@@ -250,14 +250,14 @@ func (dir *Local) loadIndex() ([]note.Note, error) {
 			break
 		}
 		item := strings.Split(line, ",")
-		ti, err := time.Parse(time.Layout, item[1])
+		ti, err := time.Parse(time.DateTime, item[1])
 		if err != nil {
 			return nil, err
 		}
 		n := note.Note{
-			Name: item[0],
+			Id:   item[0],
+			Name: item[2],
 			Date: ti,
-			Id:   item[2],
 		}
 		r = append(r, n)
 	}
@@ -302,7 +302,7 @@ func (dir *Local) addNoteData(n *note.Note) error {
 	}
 	defer f.Close()
 
-	line := fmt.Sprintf("%s,%s,%s\n", n.Name, n.Date.Format(time.Layout), n.Id)
+	line := fmt.Sprintf("%s,%s,%s\n", n.Id, n.Date.Format(time.DateTime), n.Name)
 	if _, err := f.Write([]byte(line)); err != nil {
 		return err
 	}

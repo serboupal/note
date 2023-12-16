@@ -12,11 +12,11 @@ import (
 
 func list(args []string) {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	fs.Usage = func() { usage(fs, nil) }
 	fs.Parse(args)
 
 	if fs.NArg() > 1 {
 		fs.Usage()
-		os.Exit(1)
 	}
 
 	var data []note.Note

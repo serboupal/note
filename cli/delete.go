@@ -2,16 +2,15 @@ package main
 
 import (
 	"flag"
-	"os"
 )
 
 func delete(args []string) {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
+	fs.Usage = func() { usage(fs, nil) }
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
 		fs.Usage()
-		os.Exit(2)
 	}
 
 	note, err := backend.Get(fs.Arg(0))
