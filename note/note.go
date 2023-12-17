@@ -9,26 +9,39 @@ import (
 )
 
 var (
-	ErrInvalidName = errors.New("invalid name for note")
-	ErrNoteExist   = errors.New("note name already exist")
-	ErrNotFound    = errors.New("not found")
+	ErrInvalidName   = errors.New("invalid name for note")
+	ErrIntegrityFail = errors.New("note integrity check failed")
+	ErrNoteExist     = errors.New("note name already exist")
+	ErrNotModified   = errors.New("note not modified")
+	ErrNotFound      = errors.New("note not found")
 )
 
-type Note struct {
-	Id     string
-	Name   string
-	Date   time.Time
-	Tags   []string
-	Groups []string
-	Size   int
+type Backend interface {
+	Init() error
+	Create(n *Note) error
+	Get(name string) (Note, error)
+	Update(name string, data []byte) error
+	Delete(n *Note) error
+	List(name string) ([]Note, error)
+	ListAll() ([]Note, error)
+	Search(query string) ([]Note, error)
+}
 
-	Data []byte
+type Note struct {
+	Id     string     `json:"id,omitempty"`
+	Name   string     `json:"name,omitempty"`
+	Date   *time.Time `json:"date,omitempty"`
+	Tags   []string   `json:"tags,omitempty"`
+	Groups []string   `json:"groups,omitempty"`
+	Size   int        `json:"size,omitempty"`
+	Data   []byte     `json:"data,omitempty"`
 }
 
 func NewNote(name string, title string, data []byte) (*Note, error) {
+	ti := time.Now()
 	n := Note{
 		Name: name,
-		Date: time.Now(),
+		Date: &ti,
 		Data: data,
 		Size: len(data),
 	}
@@ -40,22 +53,21 @@ func NewNote(name string, title string, data []byte) (*Note, error) {
 	return &n, nil
 }
 
+func (n *Note) Check() error {
+	hash := sha256.Sum256(n.Data)
+	Id := fmt.Sprintf("%x", hash)
+	if n.Id != Id {
+		return ErrIntegrityFail
+	}
+	if InvalidName(n.Name) {
+		return ErrInvalidName
+	}
+	return nil
+}
+
 func InvalidName(name string) bool {
 	if strings.ContainsAny(name, " <>:\"|?*") || strings.Contains(name, "..") {
 		return true
 	}
 	return false
-}
-
-type Backend interface {
-	Init() error
-	Create(n *Note) error
-	Get(name string) (Note, error)
-	Update(name string, data []byte) error
-	Delete(n *Note) error
-
-	Exist(name string) bool
-	List(name string) ([]Note, error)
-	ListAll() ([]Note, error)
-	Search(query string) ([]Note, error)
 }

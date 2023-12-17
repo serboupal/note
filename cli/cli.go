@@ -12,7 +12,7 @@ import (
 	"github.com/serboupal/note/note"
 )
 
-const appFolder = "note"
+const appFolder = ".note"
 
 var cmdOut = os.Stderr
 var backend note.Backend
@@ -41,9 +41,9 @@ func main() {
 		if remoteToken == "" {
 			errExit("To use remote service, you need to provide an auth token")
 		}
-		backend = https.NewBackendHTTPS(remoteURL, remoteToken)
+		backend = https.NewBackend(remoteURL, remoteToken)
 	} else {
-		backend = local.NewBackendLocal(appFolder)
+		backend = local.NewBackend(appFolder)
 	}
 
 	err := backend.Init()

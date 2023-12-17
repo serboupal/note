@@ -11,20 +11,20 @@ import (
 )
 
 func list(args []string) {
-	fs := flag.NewFlagSet("list", flag.ContinueOnError)
-	fs.Usage = func() { usage(fs, nil) }
-	fs.Parse(args)
+	fl := flag.NewFlagSet("list", flag.ContinueOnError)
+	fl.Usage = func() { usage(fl, nil) }
+	fl.Parse(args)
 
-	if fs.NArg() > 1 {
-		fs.Usage()
+	if fl.NArg() > 1 {
+		fl.Usage()
 	}
 
 	var data []note.Note
 	var err error
-	if fs.NArg() == 0 {
+	if fl.NArg() == 0 {
 		data, err = backend.ListAll()
 	} else {
-		data, err = backend.List(fs.Arg(0))
+		data, err = backend.List(fl.Arg(0))
 	}
 	if err != nil {
 		fmt.Println(err)

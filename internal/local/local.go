@@ -16,7 +16,6 @@ import (
 
 var (
 	ErrInvalidPath = errors.New("invalid path")
-	ErrNotModified = errors.New("note not modified")
 )
 
 type Local struct {
@@ -60,9 +59,9 @@ func (dir *Local) newPathFromPath(path string) (*path, error) {
 	return dir.newPathFromId(id)
 }
 
-// NewBackendLocal returs a Local backend that uses the dir as the folder name to save
+// NewBackend returs a Local backend that uses the dir as the folder name to save
 // data.
-func NewBackendLocal(dir string) *Local {
+func NewBackend(dir string) *Local {
 	return &Local{dir: dir}
 }
 
@@ -132,6 +131,9 @@ func (dir *Local) Get(name string) (note.Note, error) {
 			if err != nil {
 				return note.Note{}, err
 			}
+			if err = v.Check(); err != nil {
+				return v, err
+			}
 			return v, nil
 		}
 	}
@@ -144,17 +146,17 @@ func (dir *Local) Update(name string, data []byte) error {
 		return err
 	}
 
-	note, err := dir.Get(name)
+	n, err := dir.Get(name)
 	if err != nil {
 		return err
 	}
 
-	if note.Id == newNote.Id {
-		return ErrNotModified
+	if n.Id == newNote.Id {
+		return note.ErrNotModified
 	}
 
-	newNote.Tags = note.Tags
-	newNote.Groups = note.Groups
+	newNote.Tags = n.Tags
+	newNote.Groups = n.Groups
 
 	err = dir.Create(newNote)
 	if err != nil {
@@ -163,20 +165,12 @@ func (dir *Local) Update(name string, data []byte) error {
 
 	// is ok to delete after creation because we use Id and not Name to find
 	// note
-	err = dir.Delete(&note)
+	err = dir.Delete(&n)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (dir *Local) Exist(name string) bool {
-	_, err := dir.Get(name)
-	if err != nil {
-		return false
-	}
-	return true
 }
 
 func (dir *Local) Search(s string) ([]note.Note, error) {
@@ -257,7 +251,7 @@ func (dir *Local) loadIndex() ([]note.Note, error) {
 		n := note.Note{
 			Id:   item[0],
 			Name: item[2],
-			Date: ti,
+			Date: &ti,
 		}
 		r = append(r, n)
 	}
@@ -329,7 +323,7 @@ func (dir *Local) mkDirs() error {
 		return err
 	}
 
-	dir.data = filepath.Join(data, "."+dir.dir)
+	dir.data = filepath.Join(data, dir.dir)
 	err = os.Mkdir(dir.data, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		return err

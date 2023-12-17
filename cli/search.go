@@ -5,17 +5,17 @@ import (
 )
 
 func search(args []string) {
-	fs := flag.NewFlagSet("search", flag.ContinueOnError)
-	fs.Usage = func() { usage(fs, nil) }
-	fs.Parse(args)
+	fl := flag.NewFlagSet("search", flag.ContinueOnError)
+	fl.Usage = func() { usage(fl, nil) }
+	fl.Parse(args)
 
-	if fs.NArg() == 0 {
-		fs.Usage()
+	if fl.NArg() == 0 {
+		fl.Usage()
 	}
 
-	r, err := backend.Search(fs.Arg(0))
+	notes, err := backend.Search(fl.Arg(0))
 	if err != nil {
 		errExit(err.Error())
 	}
-	printList(r)
+	printList(notes)
 }

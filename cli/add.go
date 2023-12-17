@@ -11,39 +11,39 @@ import (
 )
 
 func add(args []string) {
-	fs := flag.NewFlagSet("add", flag.ContinueOnError)
-	edit := fs.Bool("edit", false, "open editor to modify before adding note")
+	fl := flag.NewFlagSet("add", flag.ContinueOnError)
+	edit := fl.Bool("edit", false, "open editor to modify before adding note")
 
-	fs.Usage = func() {
-		usage(fs, nil)
+	fl.Usage = func() {
+		usage(fl, nil)
 	}
-	fs.Parse(args)
+	fl.Parse(args)
 
-	name := fs.Arg(0)
+	name := fl.Arg(0)
 
 	if name == "" {
-		fs.Usage()
+		fl.Usage()
 	}
 
 	if note.InvalidName(name) {
 		errExit("invalid name for note")
 	}
 
-	if backend.Exist(name) {
+	if _, err := backend.Get(name); err == nil {
 		errExit(note.ErrNoteExist.Error())
 	}
 
-	var bf []byte
+	var buf []byte
 	var err error
-	filename := fs.Arg(1)
+	filename := fl.Arg(1)
 
 	if isPipe(os.Stdin) {
 		if *edit {
 			errExit("you can't use --edit on a pipe")
 		}
-		bf, err = readPipe()
+		buf, err = readPipe()
 	} else if filename != "" {
-		bf, err = os.ReadFile(filename)
+		buf, err = os.ReadFile(filename)
 		if err != nil {
 			errExit(err.Error())
 		}
@@ -52,14 +52,14 @@ func add(args []string) {
 	}
 
 	if *edit {
-		bf, err = openEditor(bf)
+		buf, err = openEditor(buf)
 	}
 
 	if err != nil {
 		errExit(err.Error())
 	}
 
-	n, err := note.NewNote(name, "", bf)
+	n, err := note.NewNote(name, "", buf)
 	if err != nil {
 		errExit(err.Error())
 	}
@@ -111,17 +111,21 @@ func openEditor(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	bf := new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 
 	_, err = tmp.Seek(0, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = io.Copy(bf, tmp)
+	_, err = io.Copy(buf, tmp)
 	if err != nil {
 		return nil, err
 	}
 
-	return bf.Bytes(), nil
+	bufB := buf.Bytes()
+	if bytes.Compare(data, bufB) == 0 {
+		return bufB, note.ErrNotModified
+	}
+	return bufB, nil
 }
