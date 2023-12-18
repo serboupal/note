@@ -13,13 +13,23 @@ import (
 )
 
 var ErrNotImplemented = errors.New("not implemented")
+var ErrInvalidQuery = errors.New("invalid query")
 
 type api struct {
 	backend note.Backend
+	token   string
 }
 
 func main() {
-	api := api{}
+	tkn := os.Getenv("NOTE_HTTPS_TOKEN")
+	if tkn == "" {
+		fmt.Fprintf(os.Stderr, "please set NOTE_HTTPS_TOKEN\n")
+		os.Exit(1)
+		return
+	}
+	api := api{
+		token: tkn,
+	}
 	api.backend = local.NewBackend(".note")
 
 	err := api.backend.Init()
@@ -28,35 +38,37 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", api.tmpRouter)
+	mux.HandleFunc("/", api.auth(api.tmpRouter))
 
 	http.ListenAndServe("localhost:48374", mux)
 }
 
 // when go 1.22 releases, change this to new http.muxer
 func (a *api) tmpRouter(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("%s, %s\n", r.Method, r.URL.Path)
+	path := r.URL.Path
 	switch r.Method {
 	case http.MethodGet:
-		if r.URL.Path == "/" {
+		if path == "/" {
 			a.listHandler(w, r)
+			return
+		} else if path == "/search" {
+			a.searchHandler(w, r)
 			return
 		}
 		a.getHandler(w, r)
 		return
 	case http.MethodPost:
-		if r.URL.Path == "/" {
+		if path == "/" {
 			a.createHandler(w, r)
 			return
 		}
-
 	case http.MethodPut:
-		if r.URL.Path != "/" {
+		if path != "/" {
 			a.updateHandler(w, r)
 			return
 		}
 	case http.MethodDelete:
-		if r.URL.Path != "/" {
+		if path != "/" {
 			a.deleteHandler(w, r)
 			return
 		}
@@ -65,7 +77,14 @@ func (a *api) tmpRouter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) listHandler(w http.ResponseWriter, r *http.Request) {
-	list, err := a.backend.ListAll()
+	filter := r.URL.Query().Get("filter")
+	var list []note.Note
+	var err error
+	if filter == "" {
+		list, err = a.backend.ListAll()
+	} else {
+		list, err = a.backend.List(filter)
+	}
 	if err != nil {
 		a.error(w, r, http.StatusInternalServerError, err)
 		return
@@ -150,9 +169,25 @@ func (a *api) deleteHandler(w http.ResponseWriter, r *http.Request) {
 	a.response(w, r, nil)
 }
 
+func (a *api) searchHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("query")
+	var list []note.Note
+	var err error
+	if query == "" {
+		a.error(w, r, http.StatusBadRequest, ErrInvalidQuery)
+		return
+	}
+	list, err = a.backend.Search(query)
+	if err != nil {
+		a.error(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	a.response(w, r, list)
+
+}
+
 func (a *api) error(w http.ResponseWriter, r *http.Request, code int, err error) {
 	fmt.Printf("%d, %s, %v\n", code, r.URL.Path, err)
-
 	w.WriteHeader(code)
 	if err != nil {
 		w.Write([]byte(err.Error()))
@@ -175,4 +210,17 @@ func (a *api) raw_response(w http.ResponseWriter, r *http.Request, code int, dat
 		return
 	}
 	w.Write(ret)
+}
+
+func (a *api) auth(f http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bearer := r.Header.Get("Authorization")
+		token := strings.TrimPrefix(bearer, "Bearer ")
+		if a.token != token {
+			fmt.Println("auth failed", r.RemoteAddr)
+			a.error(w, r, http.StatusUnauthorized, nil)
+			return
+		}
+		f(w, r)
+	}
 }

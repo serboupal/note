@@ -98,12 +98,23 @@ func (h *https) Delete(n *note.Note) error {
 }
 
 func (h *https) List(name string) ([]note.Note, error) {
-	panic("implement")
-	return nil, nil
+	return h.listInternal(name)
 }
 
 func (h *https) ListAll() ([]note.Note, error) {
-	resp, err := h.newRequestDo("GET", "", nil)
+	return h.listInternal("")
+}
+
+func (h *https) listInternal(name string) ([]note.Note, error) {
+	req, err := h.newRequest("GET", "", nil)
+	if err != nil {
+		return nil, err
+	}
+	q := req.URL.Query()
+	q.Add("filter", name)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +125,6 @@ func (h *https) ListAll() ([]note.Note, error) {
 	}
 
 	notes := []note.Note{}
-
 	err = json.NewDecoder(resp.Body).Decode(&notes)
 	if err != nil {
 		return nil, err
@@ -123,11 +133,45 @@ func (h *https) ListAll() ([]note.Note, error) {
 }
 
 func (h *https) Search(query string) ([]note.Note, error) {
-	panic("implement")
-	return nil, nil
+	req, err := h.newRequest("GET", "/search", nil)
+	if err != nil {
+		return nil, err
+	}
+	q := req.URL.Query()
+	q.Add("query", query)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, note.ErrNotFound
+	}
+
+	notes := []note.Note{}
+	err = json.NewDecoder(resp.Body).Decode(&notes)
+	if err != nil {
+		return nil, err
+	}
+	return notes, nil
 }
 
 func (h *https) newRequestDo(method, path string, a any) (*http.Response, error) {
+	req, err := h.newRequest(method, path, a)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+func (h *https) newRequest(method, path string, a any) (*http.Request, error) {
 	var buf bytes.Buffer
 	if a != nil {
 		data, err := json.Marshal(a)
@@ -149,11 +193,5 @@ func (h *https) newRequestDo(method, path string, a any) (*http.Response, error)
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+h.token)
-
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, err
+	return req, nil
 }
