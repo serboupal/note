@@ -52,7 +52,7 @@ func main() {
 	}
 
 	flag.Usage = func() {
-		usage(flag.CommandLine, commands)
+		usage(flag.CommandLine, commands, "")
 	}
 	flag.Parse()
 
@@ -69,12 +69,13 @@ func main() {
 	cmd.fn(subcommand[1:])
 }
 
-func usage(fs *flag.FlagSet, c map[string]cmd) {
+func usage(fs *flag.FlagSet, c map[string]cmd, usage string) {
 	cmdName := fs.Name()
 	if cmdName == os.Args[0] {
-		cmdName = "command"
+		fmt.Fprintf(cmdOut, "Usage:\n  %s [options] command\n\n", os.Args[0])
+	} else {
+		fmt.Fprintf(cmdOut, "Usage:\n  %s %s %s\n\n", os.Args[0], cmdName, usage)
 	}
-	fmt.Fprintf(cmdOut, "Usage:\n  %s [options] %s [file]\n\n", os.Args[0], cmdName)
 	if c != nil {
 		fmt.Fprintf(cmdOut, "Commands:\n")
 		w := tabwriter.NewWriter(cmdOut, 0, 0, 2, ' ', 0)

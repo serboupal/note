@@ -236,6 +236,9 @@ func (dir *Local) loadIndex() ([]note.Note, error) {
 	r := []note.Note{}
 	data, err := os.ReadFile(dir.data + "/index")
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, note.ErrNotFound
+		}
 		return nil, err
 	}
 	lines := strings.Split(string(data), "\n")

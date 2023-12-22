@@ -12,7 +12,8 @@ import (
 
 func list(args []string) {
 	fl := flag.NewFlagSet("list", flag.ContinueOnError)
-	fl.Usage = func() { usage(fl, nil) }
+	usg := "[EXPRESSION]"
+	fl.Usage = func() { usage(fl, nil, usg) }
 	fl.Parse(args)
 
 	if fl.NArg() > 1 {

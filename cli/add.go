@@ -13,9 +13,10 @@ import (
 func add(args []string) {
 	fl := flag.NewFlagSet("add", flag.ContinueOnError)
 	edit := fl.Bool("edit", false, "open editor to modify before adding note")
+	usg := "[options] NAME"
 
 	fl.Usage = func() {
-		usage(fl, nil)
+		usage(fl, nil, usg)
 	}
 	fl.Parse(args)
 

@@ -9,7 +9,8 @@ import (
 
 func delete(args []string) {
 	fl := flag.NewFlagSet("delete", flag.ContinueOnError)
-	fl.Usage = func() { usage(fl, nil) }
+	usg := "NAME"
+	fl.Usage = func() { usage(fl, nil, usg) }
 	fl.Parse(args)
 
 	if fl.NArg() == 0 {

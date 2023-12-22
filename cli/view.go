@@ -7,7 +7,8 @@ import (
 
 func view(args []string) {
 	fl := flag.NewFlagSet("view", flag.ContinueOnError)
-	fl.Usage = func() { usage(fl, nil) }
+	usg := "NAME"
+	fl.Usage = func() { usage(fl, nil, usg) }
 	fl.Parse(args)
 
 	if fl.NArg() == 0 {

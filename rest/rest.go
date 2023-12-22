@@ -40,7 +40,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", api.auth(api.tmpRouter))
 
-	http.ListenAndServe("localhost:48374", mux)
+	http.ListenAndServe("0.0.0.0:48374", mux)
 }
 
 // when go 1.22 releases, change this to new http.muxer
@@ -86,7 +86,11 @@ func (a *api) listHandler(w http.ResponseWriter, r *http.Request) {
 		list, err = a.backend.List(filter)
 	}
 	if err != nil {
-		a.error(w, r, http.StatusInternalServerError, err)
+		if errors.Is(err, note.ErrNotFound) {
+			a.error(w, r, http.StatusNotFound, err)
+		} else {
+			a.error(w, r, http.StatusInternalServerError, err)
+		}
 		return
 	}
 	a.response(w, r, list)

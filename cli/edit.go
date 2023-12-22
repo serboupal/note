@@ -6,7 +6,8 @@ import (
 
 func edit(args []string) {
 	fl := flag.NewFlagSet("edit", flag.ContinueOnError)
-	fl.Usage = func() { usage(fl, nil) }
+	usg := "NAME"
+	fl.Usage = func() { usage(fl, nil, usg) }
 	fl.Parse(args)
 
 	if fl.NArg() == 0 {

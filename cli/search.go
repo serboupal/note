@@ -6,7 +6,8 @@ import (
 
 func search(args []string) {
 	fl := flag.NewFlagSet("search", flag.ContinueOnError)
-	fl.Usage = func() { usage(fl, nil) }
+	usg := "EXPRESSION"
+	fl.Usage = func() { usage(fl, nil, usg) }
 	fl.Parse(args)
 
 	if fl.NArg() == 0 {

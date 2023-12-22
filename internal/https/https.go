@@ -12,7 +12,11 @@ import (
 )
 
 var _ = (note.Backend)(&https{})
-var ErrInvalidResponse = errors.New("invalid response form server")
+var (
+	ErrInvalidResponse = errors.New("invalid response form server")
+	ErrBadRequest      = errors.New("invalid user input")
+	ErrInvalidAuth     = errors.New("unauthenticated request")
+)
 
 type https struct {
 	client *http.Client
@@ -36,10 +40,8 @@ func (h *https) Create(n *note.Note) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusConflict {
-		return note.ErrNoteExist
-	} else if resp.StatusCode != http.StatusOK {
-		return ErrInvalidResponse
+	if resp.StatusCode != http.StatusOK {
+		return errMapStatus(resp.StatusCode)
 	}
 	return nil
 }
@@ -51,11 +53,8 @@ func (h *https) Get(name string) (n note.Note, err error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return n, note.ErrNotFound
-	} else if resp.StatusCode != http.StatusOK &&
-		resp.StatusCode != http.StatusUnprocessableEntity {
-		return n, ErrInvalidResponse
+	if resp.StatusCode != http.StatusOK {
+		return n, errMapStatus(resp.StatusCode)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&n)
@@ -74,10 +73,8 @@ func (h *https) Update(name string, data []byte) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusBadRequest {
-		return note.ErrNotFound
-	} else if resp.StatusCode != http.StatusOK {
-		return ErrInvalidResponse
+	if resp.StatusCode != http.StatusOK {
+		return errMapStatus(resp.StatusCode)
 	}
 	return nil
 }
@@ -89,10 +86,8 @@ func (h *https) Delete(n *note.Note) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusBadRequest {
-		return note.ErrNotFound
-	} else if resp.StatusCode != http.StatusOK {
-		return ErrInvalidResponse
+	if resp.StatusCode != http.StatusOK {
+		return errMapStatus(resp.StatusCode)
 	}
 	return nil
 }
@@ -121,7 +116,7 @@ func (h *https) listInternal(name string) ([]note.Note, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, note.ErrNotFound
+		return nil, errMapStatus(resp.StatusCode)
 	}
 
 	notes := []note.Note{}
@@ -148,7 +143,7 @@ func (h *https) Search(query string) ([]note.Note, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, note.ErrNotFound
+		return nil, errMapStatus(resp.StatusCode)
 	}
 
 	notes := []note.Note{}
@@ -194,4 +189,21 @@ func (h *https) newRequest(method, path string, a any) (*http.Request, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+h.token)
 	return req, nil
+}
+
+func errMapStatus(code int) error {
+	switch code {
+	case http.StatusNotFound:
+		return note.ErrNotFound
+	case http.StatusConflict:
+		return note.ErrNoteExist
+	case http.StatusBadRequest:
+		return ErrBadRequest
+	case http.StatusUnauthorized:
+		return ErrInvalidAuth
+	case http.StatusUnprocessableEntity:
+		return note.ErrIntegrityFail
+	default:
+		return ErrInvalidResponse
+	}
 }
