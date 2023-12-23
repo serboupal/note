@@ -72,8 +72,11 @@ func (a *api) tmpRouter(w http.ResponseWriter, r *http.Request) {
 			a.deleteHandler(w, r)
 			return
 		}
+	case http.MethodOptions:
+		a.response(w, r, nil)
+	default:
+		a.error(w, r, http.StatusNotImplemented, ErrNotImplemented)
 	}
-	a.error(w, r, http.StatusNotImplemented, ErrNotImplemented)
 }
 
 func (a *api) listHandler(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +206,9 @@ func (a *api) response(w http.ResponseWriter, r *http.Request, data any) {
 }
 
 func (a *api) raw_response(w http.ResponseWriter, r *http.Request, code int, data any) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+	w.Header().Add("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT, DELETE, PATCH")
 	if data == nil {
 		return
 	}
@@ -220,7 +226,7 @@ func (a *api) auth(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bearer := r.Header.Get("Authorization")
 		token := strings.TrimPrefix(bearer, "Bearer ")
-		if a.token != token {
+		if a.token != token && r.Method != http.MethodOptions {
 			fmt.Println("auth failed", r.RemoteAddr)
 			a.error(w, r, http.StatusUnauthorized, nil)
 			return
