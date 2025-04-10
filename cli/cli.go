@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/serboupal/note/internal/https"
@@ -12,7 +13,7 @@ import (
 	"github.com/serboupal/note/note"
 )
 
-const appFolder = ".note"
+const appFolder = "note"
 
 var cmdOut = os.Stderr
 var backend note.Backend
@@ -22,6 +23,16 @@ type cmd struct {
 	desc string
 }
 
+type Cli struct {
+	cfg       config
+	configDir string
+}
+
+type config struct {
+	remote string
+	token  string
+}
+
 var commands = map[string]cmd{
 	"add":    {fn: add, desc: "add note"},
 	"list":   {fn: list, desc: "list notes"},
@@ -29,19 +40,38 @@ var commands = map[string]cmd{
 	"search": {fn: search, desc: "search in note content"},
 	"delete": {fn: delete, desc: "delete note"},
 	"edit":   {fn: edit, desc: "edit note"},
+	"serve":  {fn: serve, desc: "start rest server"},
 }
 
 var ErrFileEmpty = errors.New("file is empty")
 
-func main() {
-	remoteURL := os.Getenv("NOTE_HTTPS_URL")
-	remoteToken := os.Getenv("NOTE_HTTPS_TOKEN")
+func NewCli() *Cli {
+	cfg, err := os.UserConfigDir()
+	if err != nil {
+		panic(err)
+	}
 
-	if remoteURL != "" {
-		if remoteToken == "" {
+	configDir := filepath.Join(cfg, appFolder)
+	err = os.Mkdir(configDir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+	return &Cli{
+		cfg: config{
+			remote: os.Getenv("NOTE_HTTPS_URL"),
+			token:  os.Getenv("NOTE_HTTPS_TOKEN"),
+		},
+		configDir: configDir,
+	}
+}
+
+func main() {
+	cli := NewCli()
+	if cli.cfg.remote != "" {
+		if cli.cfg.token == "" {
 			errExit("To use remote service, you need to provide an auth token")
 		}
-		backend = https.NewBackend(remoteURL, remoteToken)
+		backend = https.NewBackend(cli.cfg.remote, cli.cfg.token)
 	} else {
 		backend = local.NewBackend(appFolder)
 	}

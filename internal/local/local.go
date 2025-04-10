@@ -1,16 +1,13 @@
 package local
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
+	"github.com/serboupal/note/dbline"
 	"github.com/serboupal/note/note"
 )
 
@@ -90,11 +87,7 @@ func (dir *Local) Create(n *note.Note) error {
 		return err
 	}
 
-	err = dir.addNoteData(n)
-	if err != nil {
-		return err
-	}
-	return nil
+	return dir.addNoteData(n)
 }
 
 func (dir *Local) List(name string) ([]note.Note, error) {
@@ -103,21 +96,19 @@ func (dir *Local) List(name string) ([]note.Note, error) {
 	}
 	var r []note.Note
 
-	all, err := dir.ListAll()
+	all, err := dir.loadIndex()
 	if err != nil {
 		return nil, err
 	}
-
+	if name == "" {
+		return all, nil
+	}
 	for _, v := range all {
 		if strings.Contains(v.Name, name) {
 			r = append(r, v)
 		}
 	}
 	return r, nil
-}
-
-func (dir *Local) ListAll() ([]note.Note, error) {
-	return dir.loadIndex()
 }
 
 func (dir *Local) Get(name string) (note.Note, error) {
@@ -165,12 +156,7 @@ func (dir *Local) Update(name string, data []byte) error {
 
 	// is ok to delete after creation because we use Id and not Name to find
 	// note
-	err = dir.Delete(&n)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return dir.Delete(&n)
 }
 
 func (dir *Local) Search(s string) ([]note.Note, error) {
@@ -193,30 +179,8 @@ func (dir *Local) Search(s string) ([]note.Note, error) {
 }
 
 func (dir *Local) Delete(n *note.Note) error {
-	f, err := os.Open(dir.data + "/index")
+	err := dbline.DeleteEntry(dir.data+"/index", n.Id)
 	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	var bs []byte
-	buf := bytes.NewBuffer(bs)
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if !strings.Contains(text, n.Id) {
-			_, err := buf.Write(scanner.Bytes())
-			if err != nil {
-				return err
-			}
-			_, err = buf.WriteString("\n")
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
 		return err
 	}
 
@@ -225,39 +189,18 @@ func (dir *Local) Delete(n *note.Note) error {
 		return err
 	}
 
-	err = os.Remove(path.full)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dir.data+"/index", buf.Bytes(), 0644)
+	return os.Remove(path.full)
 }
 
 func (dir *Local) loadIndex() ([]note.Note, error) {
-	r := []note.Note{}
-	data, err := os.ReadFile(dir.data + "/index")
+	r, err := dbline.Open[*note.Note](dir.data + "/index")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, note.ErrNotFound
 		}
 		return nil, err
 	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if len(line) == 0 {
-			break
-		}
-		item := strings.Split(line, ",")
-		ti, err := time.Parse(time.DateTime, item[1])
-		if err != nil {
-			return nil, err
-		}
-		n := note.Note{
-			Id:   item[0],
-			Name: item[2],
-			Date: &ti,
-		}
-		r = append(r, n)
-	}
+
 	slices.Reverse(r)
 	return r, nil
 }
@@ -293,20 +236,7 @@ func (dir *Local) loadNoteData(n *note.Note) error {
 }
 
 func (dir *Local) addNoteData(n *note.Note) error {
-	f, err := os.OpenFile(dir.data+"/index", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	line := fmt.Sprintf("%s,%s,%s\n", n.Id, n.Date.Format(time.DateTime), n.Name)
-	if _, err := f.Write([]byte(line)); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return nil
+	return dbline.AppendEntry[*note.Note](dir.data+"/index", n)
 }
 
 func (dir *Local) mkDirs() error {
@@ -326,7 +256,7 @@ func (dir *Local) mkDirs() error {
 		return err
 	}
 
-	dir.data = filepath.Join(data, dir.dir)
+	dir.data = filepath.Join(data, "."+dir.dir)
 	err = os.Mkdir(dir.data, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		return err

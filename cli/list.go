@@ -23,7 +23,7 @@ func list(args []string) {
 	var data []note.Note
 	var err error
 	if fl.NArg() == 0 {
-		data, err = backend.ListAll()
+		data, err = backend.List("")
 	} else {
 		data, err = backend.List(fl.Arg(0))
 	}

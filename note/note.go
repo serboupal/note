@@ -23,7 +23,6 @@ type Backend interface {
 	Update(name string, data []byte) error
 	Delete(n *Note) error
 	List(name string) ([]Note, error)
-	ListAll() ([]Note, error)
 	Search(query string) ([]Note, error)
 }
 
@@ -51,6 +50,26 @@ func NewNote(name string, title string, data []byte) (*Note, error) {
 	hash := sha256.Sum256(data)
 	n.Id = fmt.Sprintf("%x", hash)
 	return &n, nil
+}
+
+func (n *Note) String() string {
+	return fmt.Sprintf("%s,%s,%s", n.Id, n.Date.Format(time.DateTime), n.Name)
+}
+
+func (n *Note) Parse(s string) error {
+	item := strings.Split(s, ",")
+	if len(item) != 3 {
+		return fmt.Errorf("invalid note string")
+	}
+
+	ti, err := time.Parse(time.DateTime, item[1])
+	if err != nil {
+		return err
+	}
+	n.Id = item[0]
+	n.Name = item[2]
+	n.Date = &ti
+	return nil
 }
 
 func (n *Note) Check() error {

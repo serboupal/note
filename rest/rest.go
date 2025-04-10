@@ -1,4 +1,4 @@
-package main
+package rest
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ type api struct {
 	token   string
 }
 
-func main() {
+func Serve() {
 	tkn := os.Getenv("NOTE_HTTPS_TOKEN")
 	if tkn == "" {
 		fmt.Fprintf(os.Stderr, "please set NOTE_HTTPS_TOKEN\n")
@@ -83,11 +83,7 @@ func (a *api) listHandler(w http.ResponseWriter, r *http.Request) {
 	filter := r.URL.Query().Get("filter")
 	var list []note.Note
 	var err error
-	if filter == "" {
-		list, err = a.backend.ListAll()
-	} else {
-		list, err = a.backend.List(filter)
-	}
+	list, err = a.backend.List(filter)
 	if err != nil {
 		if errors.Is(err, note.ErrNotFound) {
 			a.error(w, r, http.StatusNotFound, err)

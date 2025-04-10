@@ -93,14 +93,6 @@ func (h *https) Delete(n *note.Note) error {
 }
 
 func (h *https) List(name string) ([]note.Note, error) {
-	return h.listInternal(name)
-}
-
-func (h *https) ListAll() ([]note.Note, error) {
-	return h.listInternal("")
-}
-
-func (h *https) listInternal(name string) ([]note.Note, error) {
 	req, err := h.newRequest("GET", "", nil)
 	if err != nil {
 		return nil, err
